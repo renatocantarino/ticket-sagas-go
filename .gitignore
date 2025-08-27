@@ -1,0 +1,59 @@
+# Binários compilados
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.a
+
+# Binários do Go (nome do projeto, geralmente)
+# Substitua 'meuprojeto' pelo nome do seu binário, se desejar
+bin/
+dist/
+build/
+out/
+_bin/
+
+# Arquivos gerados pelo Go
+*.test
+*.prof
+*.trace
+*.coverprofile
+
+# Diretório de cache do Go
+.gocache/
+
+
+
+# Ambientes virtuais, dependências, etc
+vendor/     # Remova se estiver usando 'go mod vendor'
+
+# Editores e IDEs
+.idea/      # IntelliJ, GoLand
+.vscode/    # VS Code (remova se quiser versionar configs)
+*.swp
+*.swo
+*~
+.swp
+.historical
+
+# EditorConfig
+.editorconfig
+
+# Logs e traces
+*.log
+*.trace
+profile.out
+coverage.out
+
+# Testes
+_coverage/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+*.dockerfile
+docker-compose.yml  # se
