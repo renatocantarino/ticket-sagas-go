@@ -9,6 +9,13 @@ A practical implementation of the **Saga Pattern** in Go using **Clean Architect
 
 This project simulates a ticket purchase flow across multiple services, ensuring consistency even when failures occur.
 
+# The pattern
+
+The Saga Pattern is a design pattern used in distributed systems to manage long-running transactions that span multiple services, ensuring data consistency without relying on traditional distributed transactions (like two-phase commit).
+
+There are two main approaches to implementing Sagas:
+ 1. Choreography
+ 2. Orchestration
 ---
 
 ## 🧩 Features
