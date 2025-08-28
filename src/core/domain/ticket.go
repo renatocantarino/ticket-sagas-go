@@ -17,9 +17,10 @@ type Ticket struct {
 	ID         string
 	EventID    string
 	UserID     string
-	Price      float64
 	Status     TicketStatus
 	ReservedAt time.Time
+	Quantity   int
+	TotalPrice float64
 }
 
 type TicketService interface {

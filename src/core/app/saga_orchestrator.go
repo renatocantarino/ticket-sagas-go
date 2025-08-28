@@ -12,6 +12,10 @@ import (
 type SagaStep func() error
 type Compensation func()
 
+const (
+	sagaIDKey string = "saga_id"
+)
+
 type SagaStepWithCompensation struct {
 	Step         SagaStep
 	Compensation Compensation
@@ -21,47 +25,35 @@ type TicketPurchaseSaga struct {
 	ticketSvc  domain.TicketService
 	paymentSvc domain.PaymentService
 	emailSvc   domain.EmailService
-	eventRepo  domain.EventRepository
 }
 
 func NewTicketPurchaseSaga(
 	ticketSvc domain.TicketService,
 	paymentSvc domain.PaymentService,
 	emailSvc domain.EmailService,
-	eventRepo domain.EventRepository,
 ) *TicketPurchaseSaga {
 	return &TicketPurchaseSaga{
 		ticketSvc:  ticketSvc,
 		paymentSvc: paymentSvc,
 		emailSvc:   emailSvc,
-		eventRepo:  eventRepo,
 	}
 }
 
-func (s *TicketPurchaseSaga) Handler(userID, eventID string, qnt int) error {
+func (s *TicketPurchaseSaga) Handler(userID, eventID string, quantity int) error {
 
 	sagaID := uuid.New().String()
-	ctx := context.WithValue(context.Background(), "saga_id", sagaID)
+	ctx := context.WithValue(context.Background(), sagaIDKey, sagaID)
 
-	// Log inicial
 	log.Printf("Saga iniciada [saga_id=%s] | Usuário: %s, Evento: %s", sagaID, userID, eventID)
-
-	event, err := s.eventRepo.FindByID(eventID)
-	if err != nil {
-		return fmt.Errorf("evento não encontrado: %w", err)
-	}
-
-	log.Printf("Processando compra de ingresso para o evento: %s (R$%.2f)", event.Name, event.Price)
 
 	var ticket *domain.Ticket
 	var payment *domain.Payment
-	var totalPrice = event.Price * float64(qnt)
 
 	steps := []SagaStepWithCompensation{
 		{
 			Step: func() error {
 				var err error
-				ticket, err = s.ticketSvc.Reserve(ctx, userID, event.ID, qnt)
+				ticket, err = s.ticketSvc.Reserve(ctx, userID, eventID, quantity)
 				if err != nil {
 					log.Printf("Falha em Step Reserve [saga_id=%s]: %v", sagaID, err)
 					return err
@@ -79,7 +71,7 @@ func (s *TicketPurchaseSaga) Handler(userID, eventID string, qnt int) error {
 		{
 			Step: func() error {
 				var err error
-				payment, err = s.paymentSvc.ProcessPayment(ctx, userID, totalPrice)
+				payment, err = s.paymentSvc.ProcessPayment(ctx, userID, ticket.TotalPrice)
 				if err != nil {
 					return err
 				}
