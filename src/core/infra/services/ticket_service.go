@@ -1,4 +1,4 @@
-package infra
+package services
 
 import (
 	"context"
@@ -10,19 +10,23 @@ import (
 	"time"
 
 	"github.com/renatocantarino/sagas/src/core/domain"
+	"github.com/renatocantarino/sagas/src/core/infra/repository"
 )
 
 type InMemoryTicketService struct {
-	tickets   map[string]*domain.Ticket
-	eventRepo domain.EventRepository
-	mu        sync.RWMutex
+	tickets      map[string]*domain.Ticket
+	eventRepo    domain.EventRepository
+	domainEvents *repository.InMemoryDomainEventDB
+
+	mu sync.RWMutex
 }
 
-func NewInMemoryTicketService(eventRepo domain.EventRepository) *InMemoryTicketService {
+func NewInMemoryTicketService(eventRepo domain.EventRepository, domainEvents *repository.InMemoryDomainEventDB) *InMemoryTicketService {
 	return &InMemoryTicketService{
-		tickets:   make(map[string]*domain.Ticket),
-		eventRepo: eventRepo,
-		mu:        sync.RWMutex{},
+		tickets:      make(map[string]*domain.Ticket),
+		eventRepo:    eventRepo,
+		mu:           sync.RWMutex{},
+		domainEvents: domainEvents,
 	}
 }
 
@@ -46,12 +50,14 @@ func NewTicket(event *domain.Event, userID string, quantity int) (*domain.Ticket
 	}
 
 	ticket.TotalPrice = event.UnitPrice * float64(quantity)
+	event.SoldTickets += quantity
 
 	return ticket, nil
 }
 
 func (s *InMemoryTicketService) Reserve(ctx context.Context, userID, eventID string, quantity int) (*domain.Ticket, error) {
-	if sagaID, ok := ctx.Value("sagaID").(string); ok {
+	sagaID, ok := ctx.Value("saga_id").(string)
+	if ok {
 		log.Printf("sPid=%s | reserva de ingresso: %s", sagaID, eventID)
 	}
 
@@ -73,7 +79,6 @@ func (s *InMemoryTicketService) Reserve(ctx context.Context, userID, eventID str
 		return nil, fmt.Errorf("erro ao criar ticket: %w", err)
 	}
 
-	event.SoldTickets += quantity
 	err = s.eventRepo.Update(event)
 	if err != nil {
 		return nil, fmt.Errorf("falha ao atualizar evento: %w", err)
@@ -83,6 +88,19 @@ func (s *InMemoryTicketService) Reserve(ctx context.Context, userID, eventID str
 
 	log.Printf("Reserva realizada: %d ingressos para evento %s. Total: R$ %.2f",
 		quantity, eventID, ticket.TotalPrice)
+
+	payload := map[string]interface{}{
+		"ticket_id":   ticket.ID,
+		"user_id":     userID,
+		"event_id":    event.ID,
+		"quantity":    quantity,
+		"total_price": ticket.TotalPrice,
+	}
+
+	err = s.domainEvents.AppendEvent("TicketConfirmed", sagaID, payload)
+	if err != nil {
+		return nil, fmt.Errorf("falha ao criar event: %w", err)
+	}
 
 	return ticket, nil
 }

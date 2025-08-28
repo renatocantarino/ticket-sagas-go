@@ -4,16 +4,17 @@ import (
 	"log"
 
 	application "github.com/renatocantarino/sagas/src/core/app"
-	"github.com/renatocantarino/sagas/src/core/infra"
+	"github.com/renatocantarino/sagas/src/core/infra/repository"
+	"github.com/renatocantarino/sagas/src/core/infra/services"
 )
 
 func main() {
 
-	eventRepo := infra.NewInMemoryEventRepository()
-
-	ticketSvc := infra.NewInMemoryTicketService(eventRepo)
-	paymentSvc := infra.NewInMemoryPaymentService()
-	emailSvc := infra.NewInMemoryEmailService()
+	eventStoreRepo := repository.NewInMemoryEventDB()
+	eventRepo := repository.NewInMemoryEventRepository()
+	ticketSvc := services.NewInMemoryTicketService(eventRepo, eventStoreRepo)
+	paymentSvc := services.NewInMemoryPaymentService()
+	emailSvc := services.NewInMemoryEmailService()
 
 	//saga creation
 	saga := application.NewTicketPurchaseSaga(ticketSvc, paymentSvc, emailSvc)
