@@ -13,6 +13,15 @@ import (
 	"github.com/renatocantarino/sagas/src/core/infra/repository"
 )
 
+var (
+	ErrInvalidQuantity     = errors.New("quantidade inválida")
+	ErrInsufficientTickets = errors.New("ingressos insuficientes disponíveis")
+	ErrCannotConfirm       = errors.New("ingresso não pode ser confirmado")
+	ErrCannotCancel        = errors.New("ingresso não pode ser cancelado")
+	ErrAlreadyCancelled    = errors.New("ingresso já está cancelado")
+	ErrNotFound            = errors.New("ingresso não encontrado")
+)
+
 type InMemoryTicketService struct {
 	tickets      map[string]*domain.Ticket
 	eventRepo    domain.EventRepository
@@ -33,11 +42,11 @@ func NewInMemoryTicketService(eventRepo domain.EventRepository, domainEvents *re
 func NewTicket(event *domain.Event, userID string, quantity int) (*domain.Ticket, error) {
 
 	if quantity <= 0 {
-		return nil, errors.New("quantidade inválida")
+		return nil, ErrInvalidQuantity
 	}
 
 	if event.SoldTickets+quantity > event.MaxTickets {
-		return nil, errors.New("ingressos insuficientes disponíveis")
+		return nil, ErrInsufficientTickets
 	}
 
 	ticket := &domain.Ticket{
@@ -46,7 +55,7 @@ func NewTicket(event *domain.Event, userID string, quantity int) (*domain.Ticket
 		EventID:    event.ID,
 		Status:     domain.TicketReserved,
 		ReservedAt: time.Now(),
-		Quantity:   quantity, // ✅ Não esqueça de setar a quantidade!
+		Quantity:   quantity,
 	}
 
 	ticket.TotalPrice = event.UnitPrice * float64(quantity)
@@ -115,11 +124,11 @@ func (s *InMemoryTicketService) Cancel(ctx context.Context, ticketID string) err
 
 	ticket, exists := s.tickets[ticketID]
 	if !exists {
-		return errors.New("ingresso não encontrado")
+		return ErrNotFound
 	}
 
 	if ticket.Status == domain.TicketCancelled {
-		return errors.New("ingresso já está cancelado")
+		return ErrAlreadyCancelled
 	}
 
 	if ticket.Status != domain.TicketReserved {
@@ -147,7 +156,7 @@ func (s *InMemoryTicketService) Confirm(ctx context.Context, ticketID string) er
 
 	ticket, exists := s.tickets[ticketID]
 	if !exists {
-		return errors.New("ingresso não encontrado")
+		return ErrNotFound
 	}
 	ticket.Status = domain.TicketConfirmed
 	return nil
